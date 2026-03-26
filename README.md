@@ -9,6 +9,7 @@ O painel foi criado para facilitar a interpretação de métricas meteorológica
 
 ## Dados Utilizados
 * **Fonte:** Dados do INMET (Instituto Nacional de Meteorologia).
+* **Coleta e Processamento:** Os dados foram extraídos e pré-processados a partir de um [notebook/dataset público no Kaggle](https://www.kaggle.com/code/gregoryoliveira/brazil-weather-change-part-i-data-collection).
 * **Abrangência:** 49 estações meteorológicas espalhadas pelo RS.
 * **Período:** Janeiro de 2026.
 * **Métricas:** Temperatura (média, máxima, mínima), precipitação acumulada diária e anomalias climáticas.
