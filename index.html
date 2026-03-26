@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Climático — RS Janeiro 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f0f2f7;
+    --surface: #ffffff;
+    --surface2: #f7f8fc;
+    --border: #e2e6ef;
+    --text: #1a1d26;
+    --muted: #8a92a8;
+    --accent-hot: #e8470a;
+    --accent-cold: #1a7fd4;
+    --accent-rain: #0da89e;
+    --accent-avg: #c9960a;
+    --accent-green: #0e9e6e;
+    --glow-hot: rgba(232,71,10,0.08);
+    --glow-cold: rgba(26,127,212,0.08);
+    --glow-rain: rgba(13,168,158,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px 28px;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 36px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-left h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--text) 0%, #4a5272 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header-left .subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .header-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    color: var(--accent-green);
+    background: rgba(14,158,110,0.08);
+    border: 1px solid rgba(14,158,110,0.25);
+    padding: 6px 14px;
+    border-radius: 20px;
+    text-transform: uppercase;
+  }
+
+  /* GRID LAYOUT */
+  .grid {
+    display: grid;
+    gap: 16px;
+  }
+
+  /* KPIs */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 4px;
+  }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, border-color 0.2s;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  }
+  .kpi:hover { transform: translateY(-2px); }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .kpi.hot::before { background: linear-gradient(90deg, var(--accent-hot), transparent); }
+  .kpi.hot:hover { border-color: rgba(255,107,53,0.4); }
+  .kpi.cold::before { background: linear-gradient(90deg, var(--accent-cold), transparent); }
+  .kpi.cold:hover { border-color: rgba(77,184,255,0.4); }
+  .kpi.avg::before { background: linear-gradient(90deg, var(--accent-avg), transparent); }
+  .kpi.avg:hover { border-color: rgba(245,200,66,0.4); }
+  .kpi.rain::before { background: linear-gradient(90deg, var(--accent-rain), transparent); }
+  .kpi.rain:hover { border-color: rgba(61,219,217,0.4); }
+
+  .kpi-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .kpi-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+  }
+  .kpi.hot .kpi-value { color: var(--accent-hot); }
+  .kpi.cold .kpi-value { color: var(--accent-cold); }
+  .kpi.avg .kpi-value { color: var(--accent-avg); }
+  .kpi.rain .kpi-value { color: var(--accent-rain); }
+  .kpi-unit {
+    font-size: 0.9rem;
+    font-weight: 400;
+    opacity: 0.6;
+    margin-left: 2px;
+  }
+
+  /* CHART CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 26px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .card-title {
+    font-size: 0.7rem;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .card-heading {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+  }
+  .chart-wrap {
+    position: relative;
+  }
+
+  /* TWO-COL ROW */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 16px;
+  }
+
+  /* EXTREMOS */
+  .extremos-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .evento {
+    background: var(--surface2);
+    border-radius: 12px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid var(--border);
+    transition: transform 0.15s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .evento:hover { transform: translateX(4px); }
+  .evento-icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+  .evento.hot .evento-icon { background: var(--glow-hot); border: 1px solid rgba(255,107,53,0.25); }
+  .evento.cold .evento-icon { background: var(--glow-cold); border: 1px solid rgba(77,184,255,0.25); }
+  .evento.rain .evento-icon { background: var(--glow-rain); border: 1px solid rgba(61,219,217,0.25); }
+  .evento-info { flex: 1; }
+  .evento-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .evento-desc {
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .evento-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .evento.hot .evento-value { color: var(--accent-hot); }
+  .evento.cold .evento-value { color: var(--accent-cold); }
+  .evento.rain .evento-value { color: var(--accent-rain); }
+  .evento-unit { font-size: 0.75rem; font-weight: 400; opacity: 0.6; }
+
+  /* LEGEND */
+  .legend {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+  .legend-line {
+    width: 14px; height: 2px;
+    border-radius: 2px;
+  }
+
+  .anomalia {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    margin-top: 5px;
+    padding: 2px 7px;
+    border-radius: 20px;
+    display: inline-block;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+  .hot-a  { background: rgba(232,71,10,0.1);  color: var(--accent-hot);  }
+  .cold-a { background: rgba(26,127,212,0.1); color: var(--accent-cold); }
+  .rain-a { background: rgba(13,168,158,0.1); color: var(--accent-rain); }
+
+  /* CITY TOGGLE */
+  .toggle-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .toggle-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .toggle-btn.active {
+    background: var(--text);
+    color: var(--surface);
+    border-color: var(--text);
+  }
+
+  .footer {
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Dashboard Climático — RS</h1>
+    <div class="subtitle">INMET · 49 estações RS· Janeiro 2026</div>
+  </div>
+  <div class="header-badge">Rio Grande do Sul</div>
+</header>
+
+<!-- KPIs -->
+<div class="kpi-row" style="margin-bottom:16px">
+  <div class="kpi avg">
+    <div class="kpi-label">Temperatura Média</div>
+    <div class="kpi-value">23.1<span class="kpi-unit">°C</span></div>
+  </div>
+  <div class="kpi hot">
+    <div class="kpi-label">Maior Temperatura</div>
+    <div class="kpi-value">39.0<span class="kpi-unit">°C</span></div>
+  </div>
+  <div class="kpi cold">
+    <div class="kpi-label">Menor Temperatura</div>
+    <div class="kpi-value">7.4<span class="kpi-unit">°C</span></div>
+  </div>
+  <div class="kpi rain">
+    <div class="kpi-label">Chuva acumulada (todas estações)</div>
+    <div class="kpi-value">2536<span class="kpi-unit">mm</span></div>
+  </div>
+</div>
+
+<!-- Temperatura ao longo do tempo -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-title">Bloco 1</div>
+  <div class="card-heading">Temperatura ao Longo do Tempo</div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-line" style="background:rgba(255,107,53,0.5);height:8px;border-radius:2px;width:24px;opacity:0.4"></div> Amplitude (min–max)</div>
+    <div class="legend-item"><div class="legend-line" style="background:var(--accent-hot)"></div> Máxima</div>
+    <div class="legend-item"><div class="legend-line" style="background:var(--accent-avg)"></div> Média</div>
+    <div class="legend-item"><div class="legend-line" style="background:var(--accent-cold)"></div> Mínima</div>
+  </div>
+  <div class="chart-wrap"><canvas id="tempChart" height="90"></canvas></div>
+</div>
+
+<!-- Chuva + comparação cidades -->
+<div class="two-col" style="margin-bottom:16px">
+  <div class="card">
+    <div class="card-title">Bloco 2</div>
+    <div class="card-heading">Precipitação Diária</div>
+    <div style="display:flex;gap:14px;margin-bottom:14px;align-items:center">
+      <div style="display:flex;align-items:center;gap:6px;font-size:0.7rem;color:var(--muted);font-family:'JetBrains Mono',monospace"><div style="width:18px;height:8px;background:rgba(13,168,158,0.55);border-radius:3px"></div> Precipitação</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:0.7rem;color:var(--muted);font-family:'JetBrains Mono',monospace"><div style="width:18px;height:2px;background:rgba(180,80,20,0.7);border-radius:2px;border-top:2px dashed rgba(180,80,20,0.7)"></div> Média móvel 5d</div>
+    </div>
+    <div class="chart-wrap"><canvas id="rainChart" height="130"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Bloco 4</div>
+    <div class="card-heading">Comparação entre Cidades (Top 12)</div>
+    <div class="toggle-row">
+      <button class="toggle-btn active" id="btnTemp" onclick="setCityMode('temp')">🌡 Temperatura</button>
+      <button class="toggle-btn" id="btnRain" onclick="setCityMode('rain')">🌧 Chuva</button>
+    </div>
+    <div class="chart-wrap"><canvas id="cityChart" height="130"></canvas></div>
+  </div>
+</div>
+
+<!-- Extremos -->
+<div class="card">
+  <div class="card-title">Bloco 5</div>
+  <div class="card-heading">Eventos Extremos do Período</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+    <div class="evento hot">
+      <div class="evento-icon">🌡️</div>
+      <div class="evento-info">
+        <div class="evento-label">Dia mais quente</div>
+        <div class="evento-desc">São Luiz Gonzaga · 27/01</div>
+        <div class="anomalia hot-a">+15.9°C acima da média</div>
+      </div>
+      <div class="evento-value">39.0<span class="evento-unit">°C</span></div>
+    </div>
+    <div class="evento cold">
+      <div class="evento-icon">❄️</div>
+      <div class="evento-info">
+        <div class="evento-label">Dia mais frio</div>
+        <div class="evento-desc">S. Francisco de Paula · 05/01</div>
+        <div class="anomalia cold-a">−15.7°C abaixo da média</div>
+      </div>
+      <div class="evento-value">7.4<span class="evento-unit">°C</span></div>
+    </div>
+    <div class="evento rain">
+      <div class="evento-icon">🌧️</div>
+      <div class="evento-info">
+        <div class="evento-label">Dia mais chuvoso</div>
+        <div class="evento-desc">S. Francisco de Paula · 09/01</div>
+        <div class="anomalia rain-a">5.4× acima da média diária</div>
+      </div>
+      <div class="evento-value">47.7<span class="evento-unit">mm</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">Fonte: INMET — Instituto Nacional de Meteorologia &nbsp;|&nbsp; Dados processados para fins de visualização</div>
+
+<script>
+const daily = [{"DATA":"01/01","temp_avg":26.0,"temp_max":35.6,"temp_min":17.5,"rain":105.8},{"DATA":"02/01","temp_avg":24.7,"temp_max":34.7,"temp_min":14.4,"rain":36.1},{"DATA":"03/01","temp_avg":21.9,"temp_max":32.9,"temp_min":12.2,"rain":12.5},{"DATA":"04/01","temp_avg":17.4,"temp_max":26.4,"temp_min":8.1,"rain":0.0},{"DATA":"05/01","temp_avg":18.2,"temp_max":28.3,"temp_min":7.4,"rain":0.4},{"DATA":"06/01","temp_avg":21.8,"temp_max":33.2,"temp_min":11.4,"rain":0.0},{"DATA":"07/01","temp_avg":24.9,"temp_max":36.6,"temp_min":15.4,"rain":49.2},{"DATA":"08/01","temp_avg":22.6,"temp_max":33.4,"temp_min":15.2,"rain":40.4},{"DATA":"09/01","temp_avg":23.5,"temp_max":33.6,"temp_min":15.7,"rain":194.1},{"DATA":"10/01","temp_avg":23.5,"temp_max":33.4,"temp_min":17.1,"rain":433.0},{"DATA":"11/01","temp_avg":22.7,"temp_max":30.9,"temp_min":15.0,"rain":122.3},{"DATA":"12/01","temp_avg":21.8,"temp_max":31.0,"temp_min":14.0,"rain":43.1},{"DATA":"13/01","temp_avg":23.9,"temp_max":34.3,"temp_min":13.8,"rain":17.6},{"DATA":"14/01","temp_avg":25.8,"temp_max":35.5,"temp_min":15.3,"rain":15.5},{"DATA":"15/01","temp_avg":26.8,"temp_max":38.1,"temp_min":17.2,"rain":91.4},{"DATA":"16/01","temp_avg":25.2,"temp_max":35.6,"temp_min":16.6,"rain":279.7},{"DATA":"17/01","temp_avg":24.0,"temp_max":33.5,"temp_min":14.9,"rain":35.1},{"DATA":"18/01","temp_avg":23.7,"temp_max":34.0,"temp_min":14.7,"rain":347.8},{"DATA":"19/01","temp_avg":20.4,"temp_max":27.9,"temp_min":11.0,"rain":70.7},{"DATA":"20/01","temp_avg":19.2,"temp_max":28.6,"temp_min":8.7,"rain":5.8},{"DATA":"21/01","temp_avg":20.5,"temp_max":31.6,"temp_min":11.8,"rain":3.8},{"DATA":"22/01","temp_avg":21.8,"temp_max":32.9,"temp_min":12.0,"rain":2.0},{"DATA":"23/01","temp_avg":22.1,"temp_max":34.3,"temp_min":11.3,"rain":0.2},{"DATA":"24/01","temp_avg":22.8,"temp_max":34.0,"temp_min":13.6,"rain":0.0},{"DATA":"25/01","temp_avg":24.3,"temp_max":36.2,"temp_min":14.8,"rain":0.2},{"DATA":"26/01","temp_avg":25.6,"temp_max":37.4,"temp_min":15.1,"rain":0.0},{"DATA":"27/01","temp_avg":26.5,"temp_max":39.0,"temp_min":15.0,"rain":26.9},{"DATA":"28/01","temp_avg":26.1,"temp_max":38.8,"temp_min":16.1,"rain":50.8},{"DATA":"29/01","temp_avg":23.9,"temp_max":33.3,"temp_min":14.8,"rain":264.5},{"DATA":"30/01","temp_avg":22.7,"temp_max":32.4,"temp_min":14.2,"rain":157.1},{"DATA":"31/01","temp_avg":22.2,"temp_max":33.1,"temp_min":14.0,"rain":130.6}];
+
+// Sort cities descending by temp (guarantee order)
+const citiesRaw = [{"CIDADE":"SAO LUIZ GONZAGA","temp_avg":25.9,"rain_total":14.1},{"CIDADE":"SAPUCAIA DO SUL","temp_avg":25.3,"rain_total":40.0},{"CIDADE":"PORTO ALEGRE - JARDIM BOTANICO","temp_avg":25.1,"rain_total":49.2},{"CIDADE":"CHARQUEADAS","temp_avg":25.0,"rain_total":48.4},{"CIDADE":"CAMPO BOM","temp_avg":24.7,"rain_total":103.5},{"CIDADE":"PORTO ALEGRE - BELEM NOVO","temp_avg":24.7,"rain_total":66.0},{"CIDADE":"CACHOEIRA DO SUL","temp_avg":24.6,"rain_total":79.6},{"CIDADE":"SANTO ANTONIO DA PATRULHA","temp_avg":24.5,"rain_total":68.8},{"CIDADE":"CACHOEIRINHA","temp_avg":24.5,"rain_total":24.8},{"CIDADE":"TRAMANDAI","temp_avg":24.5,"rain_total":53.9},{"CIDADE":"PALMARES DO SUL","temp_avg":24.4,"rain_total":57.0},{"CIDADE":"TEUTONIA","temp_avg":24.3,"rain_total":35.2}];
+const citiesTemp = [...citiesRaw].sort((a,b) => b.temp_avg - a.temp_avg);
+const citiesRain = [...citiesRaw].sort((a,b) => b.rain_total - a.rain_total);
+
+const labels = daily.map(d => d.DATA);
+const gridColor = 'rgba(0,0,0,0.06)';
+const tickColor = '#8a92a8';
+const tooltipBase = { backgroundColor:'#ffffff', titleColor:'#1a1d26', bodyColor:'#5a6278', borderColor:'#e2e6ef', borderWidth:1 };
+
+// ── TEMP CHART — explicit area dataset instead of fill:'+1'/'-1' ──
+const tempCtx = document.getElementById('tempChart').getContext('2d');
+
+// Area band: use a dedicated dataset for upper boundary + lower boundary fill
+new Chart(tempCtx, {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [
+      {
+        // Invisible upper boundary for the band fill
+        label: '_band_top',
+        data: daily.map(d => d.temp_max),
+        borderWidth: 0,
+        pointRadius: 0,
+        tension: 0.4,
+        fill: { target: '+1', above: 'rgba(200,120,60,0.1)' },
+        backgroundColor: 'rgba(200,120,60,0.1)',
+      },
+      {
+        // Invisible lower boundary for the band fill
+        label: '_band_bot',
+        data: daily.map(d => d.temp_min),
+        borderWidth: 0,
+        pointRadius: 0,
+        tension: 0.4,
+        fill: false,
+        backgroundColor: 'transparent',
+      },
+      {
+        label: 'Máxima',
+        data: daily.map(d => d.temp_max),
+        borderColor: 'rgba(232,71,10,0.75)',
+        borderWidth: 1.8,
+        pointRadius: 0,
+        tension: 0.4,
+        fill: false,
+      },
+      {
+        label: 'Média',
+        data: daily.map(d => d.temp_avg),
+        borderColor: '#c9960a',
+        borderWidth: 2.5,
+        pointRadius: 3,
+        pointBackgroundColor: '#c9960a',
+        tension: 0.4,
+        fill: false,
+      },
+      {
+        label: 'Mínima',
+        data: daily.map(d => d.temp_min),
+        borderColor: 'rgba(26,127,212,0.75)',
+        borderWidth: 1.8,
+        pointRadius: 0,
+        tension: 0.4,
+        fill: false,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        ...tooltipBase,
+        filter: item => !item.dataset.label.startsWith('_'),
+        callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}°C` }
+      }
+    },
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 16 } },
+      y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'JetBrains Mono', size: 10 }, callback: v => v + '°' } }
+    }
+  }
+});
+
+// ── RAIN CHART + moving average ──
+const rainCtx = document.getElementById('rainChart').getContext('2d');
+const rainVals = daily.map(d => d.rain);
+const rainColors = rainVals.map(r => r > 200 ? 'rgba(13,168,158,0.85)' : r > 50 ? 'rgba(13,168,158,0.55)' : 'rgba(13,168,158,0.3)');
+
+// 5-day moving average
+const W = 5;
+const movAvg = rainVals.map((_, i) => {
+  const start = Math.max(0, i - Math.floor(W/2));
+  const end   = Math.min(rainVals.length, i + Math.ceil(W/2));
+  const slice = rainVals.slice(start, end);
+  return Math.round(slice.reduce((a,b)=>a+b,0) / slice.length * 10) / 10;
+});
+
+new Chart(rainCtx, {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [
+      {
+        label: 'Precipitação (mm)',
+        data: rainVals,
+        backgroundColor: rainColors,
+        borderRadius: 4,
+        borderSkipped: false,
+        order: 2,
+      },
+      {
+        label: 'Média móvel 5d',
+        data: movAvg,
+        type: 'line',
+        borderColor: 'rgba(180,80,20,0.7)',
+        borderWidth: 2,
+        borderDash: [4,3],
+        pointRadius: 0,
+        tension: 0.4,
+        fill: false,
+        order: 1,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        ...tooltipBase,
+        callbacks: { label: ctx => ctx.dataset.type === 'line' ? ` Média 5d: ${ctx.parsed.y} mm` : ` ${ctx.parsed.y} mm` }
+      }
+    },
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 10 } },
+      y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'JetBrains Mono', size: 10 }, callback: v => v + ' mm' } }
+    }
+  }
+});
+
+// ── CITY CHART with toggle ──
+const cityCtx = document.getElementById('cityChart').getContext('2d');
+
+function buildCityChart(mode) {
+  const sorted = mode === 'temp' ? citiesTemp : citiesRain;
+  const cityLabels = sorted.map(c => {
+    let n = c.CIDADE.split(' - ')[0];
+    n = n.replace(/ (DO|DA|DE|DOS|DAS)\b/g,'');
+    return n.length > 16 ? n.slice(0,15)+'…' : n;
+  });
+  const vals = sorted.map(c => mode === 'temp' ? c.temp_avg : c.rain_total);
+  const grad = cityCtx.createLinearGradient(0,0,300,0);
+  if (mode === 'temp') {
+    grad.addColorStop(0, 'rgba(232,71,10,0.85)');
+    grad.addColorStop(1, 'rgba(245,200,66,0.65)');
+  } else {
+    grad.addColorStop(0, 'rgba(13,168,158,0.9)');
+    grad.addColorStop(1, 'rgba(26,127,212,0.55)');
+  }
+  return { labels: cityLabels, vals, grad, mode };
+}
+
+let cityChart;
+function renderCityChart(mode) {
+  const { labels: cl, vals, grad } = buildCityChart(mode);
+  if (cityChart) cityChart.destroy();
+  cityChart = new Chart(cityCtx, {
+    type: 'bar',
+    data: {
+      labels: cl,
+      datasets: [{
+        label: mode === 'temp' ? 'Temp. Média (°C)' : 'Chuva Total (mm)',
+        data: vals,
+        backgroundColor: grad,
+        borderRadius: 5,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...tooltipBase,
+          callbacks: { label: ctx => mode === 'temp' ? ` ${ctx.parsed.x}°C` : ` ${ctx.parsed.x} mm` }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: gridColor },
+          ticks: { color: tickColor, font: { family: 'JetBrains Mono', size: 9 }, callback: v => mode === 'temp' ? v+'°' : v+' mm' },
+          ...(mode === 'temp' ? { min: 22, max: 27 } : {})
+        },
+        y: { grid: { display: false }, ticks: { color: '#8a92a8', font: { family: 'JetBrains Mono', size: 9 } } }
+      }
+    }
+  });
+}
+
+function setCityMode(mode) {
+  document.getElementById('btnTemp').classList.toggle('active', mode === 'temp');
+  document.getElementById('btnRain').classList.toggle('active', mode === 'rain');
+  renderCityChart(mode);
+}
+
+renderCityChart('temp');
+</script>
+</body>
+</html>
